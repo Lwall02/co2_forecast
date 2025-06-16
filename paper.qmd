@@ -1,0 +1,12 @@
+---
+title: "CO2 Emmisions Forecasting with Time Series Analysis"
+format: pdf
+---
+
+```{r}
+#| include: false
+#| echo: false
+
+library(tidyverse)
+```
+
