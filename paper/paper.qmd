@@ -1,0 +1,18 @@
+---
+title: "CO2 Emmisions Forecasting with Time Series Analysis"
+format: pdf
+---
+
+```{r}
+#| include: false
+#| echo: false
+
+library(tidyverse)
+```
+
+```{r}
+co2_raw <- read_csv(file = "https://raw.githubusercontent.com/owid/co2-data/master/owid-co2-data.csv")
+head(co2_raw)
+```
+
+World in Data data @owid-co2-and-greenhouse-gas-emissions.
