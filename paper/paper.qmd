@@ -16,3 +16,10 @@ head(co2_raw)
 ```
 
 World in Data data @owid-co2-and-greenhouse-gas-emissions.
+Your goal is to develop a well-reasoned and data-driven model for forecasting CO2 emissions and providing meaningful insights.
+To develop a well-reasoned and data driven model I have to make some assumptions as the chosen statistician for your desire of knowledge of co2 emissions. 
+- Firstly I assume that global population has an overarching effect on many of the variables in this paper if not all. And for that purpose, from the base data needed for this project, we will look at co2 per capita on an annual basis, which is accurately recorded from 1950 to 2023. 
+- Secondly, I will focus on finding time series patterns in the co2 data and extrapolating those through analysis. However I will take a few liberties and use other datasets to support the model. Thus I will be fitting a linear regression with autocorellated errors (hopefully if the results allow it - so far it's good model) 
+- Thirdly, I will argue why I think it not necessary to use every predictor that may be useful. I want to avoid overfitting a model with the regression. I want the regression to capture a decent part of the trend and the errors follow a time series. Thus I will use the global mean temperature difference from the 1861-1890 mean. I will also use the annual black carbon (or soot) emmissions from industry (buring of fossisl fuels) (in my mind the long and short term effect). I've done transformations on these in order to emphasize certain properties of their series in order to more accurately assist the liinear model
+- Fourth, we then fit that model and look at the ACF and PAcf and find how the errors are correlaed. Trial and error to get th ebest one and look at the fit of that new model with autocoreallted errors
+- Fifth, forecast and compare with known valu eof at least 2023. 
