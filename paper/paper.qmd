@@ -187,7 +187,7 @@ plot(resid(fit3))
 
 ```
 
-To choose the differencing, autoregressive, and moving average, parameters $d$, $p$ and $q$ we consider the ACF and PACF plots of the fitted residuals. Refer to the Appendix for a visual of all three model's ACF and PACF plots. After examination we can see the clear choice of model is $d=2$, where the ACF cuts off at 1 and the PACF tails off. This corresponds to model three having ARIMA$(0,2,1)$ errors. Below is the ACF and PACF plot of the third model. @fig-acf1 shows the resulting twice differenced residuals, as well as the ACF and PACF plots.
+To choose the differencing, autoregressive, and moving average, parameters $d$, $p$ and $q$ we consider the ACF and PACF plots of the fitted residuals. Refer to the Appendix for a visual of all three model's ACF and PACF plots. After examination we can see the clear choice of model is $d=2$, where the ACF cuts off at 1 and the PACF tails off. This corresponds to model three having ARIMA$(0,2,1)$ errors. Below is the ACF and PACF plot of the third model. @fig-acf1 shows the resulting twice differenced residuals, as well as the ACF and PACF plots. The ACF and PACF plots for models 1 and 2 can be found in the Appendix. Models 1 and 2 both have ARIMA$(0,2,2)$ errors.
 
 ```{r}
 #| echo: false
@@ -204,112 +204,142 @@ invisible(acf(diff(resid(fit3), differences = 2), type = "partial"))
 
 {{<pagebreak >}}
 
-Now that we have chosen the regression with ARIMA$(0,2,1)$ errors model, we need to make sure the model assumptions are satisfied before forecasting. Refer to the Appendix for complete statistics on the residuals of the regression with ARIMA$(0,2,1)$ errors. The residual diagnostics display residual with no significat lags. We also see a QQ plot where the values lie all very close to the diagonal indicating white noise, as well as all values above the threshold on the Ljung Box Test.
+Now that we have chosen the regression with ARIMA$(p,d,q)$ errors model, we need to make sure the model assumptions are satisfied before forecasting. Refer to the Appendix for complete statistics on the residuals of the regression with ARIMA$(0,2,1)$ and ARIMA$(0,2,2)$ errors. The residual diagnostics display residual with no significat lags. We also see a QQ plot where the values lie all very close to the diagonal indicating white noise, as well as all values above the threshold on the Ljung Box Test.
 
 {{< pagebreak >}}
 
 # Forecasting and Results
 
-Now that we have three fitted models over three different training data sets, and we have completed the residual diagnostic tests. We may examine the forecasted results of the fitted model. What we find from the performance of these three models is that both model one and model two have very similar forecasts. We can see, in @fig-arima1 and @fig-arima2, that the blue forecasted line is almost the exact same in both models. Most noticeably, we see that is clearly overestimates that observed CO2 levels in the forecasted years. More importantly however, model one and two both significantly over estimate the forecasted value for 2022 and 2023. On the contrary, model 3 very accurately forecasts the post COVID-19 years.
+Now that we have three fitted models over three different training data sets, and we have completed the residual diagnostic tests, we may examine their forecasted results. What we find from the performance of these three models is that both model one and model two have very similar forecasts. We can see in @fig-arima1 that the blue forecasted line is almost the exact same in both models. Most noticeably, we see that is clearly overestimates that observed CO2 levels in the forecasted years. More importantly however, model one and two both significantly over estimate the forecasted value for 2022 and 2023. On the contrary, model 3 very accurately forecasts the post COVID-19 years.
 
 ```{r}
 #| echo: false
 #| label: fig-arima1
-#| fig-width: 10
-#| fig-cap: "The plot on the left shows the fitted values (red) against the real observed log(CO2) values for model one (black). We can see the linear regression in dotted blue. The plot on the left shows the forecasted values for 2008 to 2023 as well as the observed CO2 levels in orange. "
-
+#| fig-width: 8
+#| fig-height: 6
+#| fig-cap: "The plots on the left show the fitted values (red) against the real observed log(CO2) values for each model(black). We can also see the fitted regression in dotted blue. The plots on the right show the forecasted values for each model with their 80% and 95% confidence intervals shaded in blue. The observed values are in orange. "
+par(mfrow=c(3,2))
 model1 <- Arima(log(co2_train1), order = c(0, 2, 2), xreg = pop_train1, include.mean = FALSE)
-par(mfrow=c(1,2))
+# Plot the fitted values
 plot(log(co2_train1), lwd = 2,
-     main = "Fitted Regression with ARIMA(0,2,1) Errors Model",
+     main = "Fitted Regression with ARIMA(0,2,2) Errors Model",
      ylab = "log(CO2) (tonnes)",
      xlab = "1950-2007")
 lines(model1$fitted, col = "red", lwd = 2)
 lines(fitted_values1, col = "blue", lty = 2, lwd = 1)
-
 h <- 16
 last_year <- end(co2_train1)[1] # 2007
-
 future_time_vals <- (last_year + 1):(last_year + h)
-
 forecast_population_vals <- owid_co2_clean[259:274,]$population
-
 co2_forecast1 <- forecast(model1, xreg = forecast_population_vals, h = h)
 
 # Plot the forecast
 actual_co2 <- owid_co2_clean[259:274,]$co2
 years <- c(2008:2023)
-
-plot(co2_forecast1, main = "Forecasted Values for 2008-2023")
+plot(co2_forecast1, 
+     main = "Forecasted Values for 2008-2023",
+     xlim = c(2000, 2023))
 points(x = years, y = log(actual_co2), col = "orange", pch = 19)
-```
 
-```{r}
-#| echo: false
-#| label: fig-arima2
-#| fig-width: 10
-#| fig-cap: "The plot on the left shows the fitted values against the real observed log(CO2) values for model two. The plot on the left shows the forecasted values for 2015 to 2023 as well as the observed CO2 levels in orange. "
 
 model2 <- Arima(log(co2_train2), order = c(0, 2, 2), xreg = pop_train2, include.mean = FALSE)
-par(mfrow=c(1,2))
+# Plot the fitted values
 plot(log(co2_train2), lwd = 2,
-     main = "Fitted Regression with ARIMA(0,2,1) Errors Model",
+     main = "Fitted Regression with ARIMA(0,2,2) Errors Model",
      ylab = "log(CO2) (tonnes)",
      xlab = "1950-2014")
 lines(model2$fitted, col = "red", lwd = 2)
 lines(fitted_values2, col = "blue", lty = 2, lwd = 1)
-
 h <- 9  
 last_year <- end(co2_train1)[1] # 2014
-
 future_time_vals <- (last_year + 1):(last_year + h)
-
 forecast_population_vals <- owid_co2_clean[266:274,]$population
-
 co2_forecast2 <- forecast(model2, xreg = forecast_population_vals, h = h)
 
 # Plot the forecast
 actual_co2 <- owid_co2_clean[266:274,]$co2
 years <- c(2015:2023)
-
-plot(co2_forecast2, main = "Forecasted Values for 2015-2023")
+plot(co2_forecast2, 
+     main = "Forecasted Values for 2015-2023",
+     xlim = c(2000, 2023))
 points(x = years, y = log(actual_co2), col = "orange", pch = 19)
-```
 
-```{r}
-#| echo: false
-#| label: fig-arima3
-#| fig-width: 10
-#| fig-cap: "The plot on the left shows the fitted values against the real observed log(CO2) values for model two. The plot on the left shows the forecasted values for 2022 and 2023 as well as the observed CO2 levels in orange."
 
 model3 <- Arima(log(co2_train3), order = c(0,2,1), xreg = xreg_train)
-par(mfrow=c(1,2))
+# Plot the fitted values 
 plot(log(co2_train3), lwd = 2,
      main = "Fitted Regression with ARIMA(0,2,1) Errors Model",
      ylab = "log(CO2) (tonnes)",
      xlab = "1950-2021")
 lines(model3$fitted, col = "red", lwd = 2)
 lines(fitted_values3, col = "blue", lty = 2, lwd = 1)
-
 future_years <- forecast_start_year:forecast_end_year
 future_time_vals <- as.numeric(future_years)
 forecast_xreg_matrix <- as.matrix(full_xreg_matrix[73:74])
-
 co2_forecast3 <- forecast(model3, xreg = forecast_xreg_matrix, h = h_forecast)
 
 # Plot the forecast
 actual_co2 <- log(owid_co2_clean[273:274,]$co2)
 years <- forecast_start_year:forecast_end_year
-
-plot(co2_forecast3, main = "Log CO2 Forecast with COVID Indicator and ARIMA(0,2,1) Errors")
+plot(co2_forecast3, 
+     main = "Forecasted Values for 2022 and 2023",
+     xlim = c(2000, 2023))
 points(x = years, y = actual_co2, col = "orange", pch = 1)
 ```
+
+To look closer at the predictions of these models consider @tbl-forecasts. This table shows the forecasted estimates for the years 2022 and 2023. The largest deviations for each model's predictions from the observed values (excluding 2020 for COVID-19).
+
+```{r}
+#| echo: false
+#| label: tbl-forecasts
+par(mfrow=c(2,1))
+
+forecast_2022_data <- data.frame(
+  Model = c("Model 1", "Model 2", "Model 3"),
+  Lower_95 = exp(c(co2_forecast1$lower[15, 2], co2_forecast2$lower[8, 2], co2_forecast3$lower[1, 2])),
+  Upper_95 = exp(c(co2_forecast1$upper[15, 2], co2_forecast2$upper[8, 2], co2_forecast3$upper[1, 2])),
+  Forecast_2022 = exp(c(co2_forecast1$mean[15], co2_forecast2$mean[8], co2_forecast3$mean[1])),
+  Observed_2022 = owid_co2_clean$co2[273]
+)
+forecast_2022_data$Error <- forecast_2022_data$Observed - forecast_2022_data$Forecast
+
+forecast_2023_data <- data.frame(
+  Model = c("Model 1", "Model 2", "Model 3"),
+  Lower_95 = exp(c(co2_forecast1$lower[16, 2], co2_forecast2$lower[9, 2], co2_forecast3$lower[2, 2])),
+  Upper_95 = exp(c(co2_forecast1$upper[16, 2], co2_forecast2$upper[9, 2], co2_forecast3$upper[2, 2])),
+  Forecast_2023 = exp(c(co2_forecast1$mean[16], co2_forecast2$mean[9], co2_forecast3$mean[2])),
+  Observed_2023 = owid_co2_clean$co2[274]
+)
+forecast_2023_data$Error <- forecast_2023_data$Observed - forecast_2023_data$Forecast
+
+kableExtra::kable(forecast_2022_data, digits = 3, caption = "The detailed forecast statistics for the year 2022. Each model's lower and upper 95% confidence interval, the point estimate, the observed value, and the forecast error")
+kableExtra::kable(forecast_2023_data, digits = 3, caption = "The detailed forecast statistics for the year 2023. Each model's lower and upper 95% confidence interval, the point estimate, the observed value, and the forecast error")
+
+```
+
+# Discussion and Conclusion
+
+This paper developed three regression models with ARIMA$(0,2,1)$ and ARIMA$(0,2,2)$errors to forecast global CO2 emissions based on population trends. Each model used an increasing amount of training data, ending in 2007, 2014, and 2021, to analyze the time series of CO2 emissions and the effect of the COVID-19 pandemic.
+
+The first two models, trained only up to 2007 and 2014, reveal a shared insight that both anticipate continued steep increases in CO2 emissions when projecting forward. Despite the seven year difference in training data, their predictions for the post-2014 period are very similar, reflecting the consistent high-growth trajectory of emissions up to that point. These models overestimate emissions for 2022 and 2023, indicating that if global conditions had remained constant, CO2 levels would likely be significantly higher than what we observe today. This being evidence that foreign policy intervention since 2014 helped mitigate the CO2 growth rate.
+
+The third model, incorporating data through 2021 and including a COVID-19 indicator variable, captures the dramatic short-term impact of the pandemic on emissions. It delivers highly accurate forecasts for 2022 and 2023, demonstrating the effectiveness of explicitly modeling the uncharacteristic COVID-19 pandemic. The inclusion of the pandemic as an exogenous event avoids misinterpreting the sharp emissions drop as an element of the variance of an ARIMA error and instead continues the increasing, but still less steep trend, that the first two models overestimated. In short, the third model was able to better capture the trends of CO2 growth evident from 2014-2021. These trends proved useful enough to improve the prediction to a level far better than the first two models.
+
+The implications of this paper I want to highlight are the drastic and unpredictable nature of the interventions in global CO2 emissions. The diversity behind each country's decisions regarding their production of greenhouse gases, the introduction and dissolving of climate change agreements, new technology, and political turmoil makes future predictions very uncertain. However, this paper confirms the fact that the changes made in recent decades, especially the ones outlined in the introduction of this paper, have curbed the CO2 growth rate.
+
+Lastly, the significant overestimation of emissions in the first two models underscores how emissions would have continued to rise sharply without intervention. The accuracy of the third model reflects how temporary global disruptions can reset the emissions trajectories. However, relying on such events is not sustainable and we must work together to create a certain and better future.
+
+## Limitations and Next Steps
+
+The models in this paper assume a stable population-to-CO2 trend, which may not hold under shifting energy sources, economic patterns, or global agreements. Additionally, only population and a COVID-19 indicator were used as explanatory variables. Incorporating variables such as GDP, energy production type, or policy variables might improve accuracy but would introduce significant complexity and forecasting uncertainty.
 
 {{< pagebreak >}}
 
 # Appendix
 
-Log versus not log models of CO2 regressed against population were assesed in order to choose and baseline for the regression with ARIMA errors. We can see in @tbl-bic that the log models performed much better with respect to information criterias. Note that because our time variable is valued at 1950 to 2023, the $\beta_1$ coefficient of population is near 0.
+## Model Information Criteria
+
+The raw annual total CO2 concentration in tonnes compared to the log transformation regressed against population were assessed in order to choose and baseline for the regression with ARIMA errors. We can see in @tbl-bic that the log model performed much better with respect to information criterion. Note that because our time variable ranges from 1950 to 2023, the $\beta_1$ coefficient of population is near 0, however it is positive.
 
 ```{r}
 #| echo: false
@@ -320,26 +350,81 @@ fit4 <- lm(co2_train2 ~ pop_train2)
 modelsummary::modelsummary(models = list("Fit from 2007" = fit2, "Fit from 2014" = fit4))
 ```
 
-When choosing the parameters we looked at the ACF and PACF plots of the models when $d=0$, $d=1$, and $d=2$. Figure 3, 4 and 5 shows the ACF and PACF plots of the third model with those three differences. The ACF and PACF plots of the first two models behave the same way.
+{{< pagebreak >}}
+
+## Model Complete ACF and PACF plots
+
+When choosing the parameters we looked at the ACF and PACF plots of the models when $d=0$, $d=1$, and $d=2$. Figures 5, 6, and 7 below show the ACF and PACF plots of the models 1, 2 and 3, each with two differences applied.
+
+```{r}
+#| echo: false
+#| label: fig-three-acf1
+#| fig-cap: "This plot shows the ACF and PACF plots of the ARIMA(0,2,2) errors on model 1 from 1950 to 2007."
+#| fig-height: 3
+
+invisible(acf2(diff(resid(fit1), differences = 2), max.lag = 50))
+
+```
 
 ```{r}
 #| echo: false
 #| label: fig-three-acf2
-#| fig-cap: "This plot shows the ACF and PACF plots of all three fitted models."
+#| fig-cap: "This plot shows the ACF and PACF plots of the ARIMA(0,2,2) errors on model 1 from 1950 to 2014."
+#| fig-height: 3
 
-invisible(acf2(diff(resid(fit1), differences = 2), max.lag = 50))
 invisible(acf2(diff(resid(fit2), differences = 2), max.lag = 50))
+
+```
+
+```{r}
+#| echo: false
+#| label: fig-three-acf3
+#| fig-cap: "This plot shows the ACF and PACF plots of the ARIMA(0,2,1) errors on model 1 from 1950 to 2021."
+#| fig-height: 3
+
 invisible(acf2(diff(resid(fit3), differences = 2), max.lag = 50))
 
 ```
 
-Below are the residual diagnostic plots for the fitted ARIMA(p,d,q) models.
+{{< pagebreak >}}
+
+## Model Coefficients
+
+Refer to @tbl-sarima1, @tbl-sarima1, @tbl-sarima1 to find each model's estimated coefficients. Note these estimates were obtained by maximum likelihood estimation. Below are the residual diagnostic plots for the fitted ARIMA(p,d,q) models.
 
 ```{r}
 #| echo: false
-#| label: fig-sarima
+#| include: false
 
-sarima(log(co2_train3), 0, 2, 1, xreg = xreg_train)
+model4 <- sarima(log(co2_train1), 0, 2, 2, xreg = as.matrix(pop_train1))
+model5 <- sarima(log(co2_train2), 0, 2, 2, xreg = as.matrix(pop_train2))
+model6 <- sarima(log(co2_train3), 0, 2, 1, xreg = xreg_train)
+```
+
+```{r}
+#| echo: false
+#| label: tbl-sarima1
+#| tbl-cap: "Estimated model coefficients for the fitted regression with ARIMA(0,2,1) errors from 1950 to 2007."
+#| warning: false
+
+kableExtra::kable(as.data.frame(model4$ttable))
+
+```
+
+```{r}
+#| echo: false
+#| label: tbl-sarima2
+#| tbl-cap: "Estimated model coefficients for the fitted regression with ARIMA(0,2,1) errors from 1950 to 2014."
+
+kableExtra::kable(as.data.frame(model5$ttable))
+```
+
+```{r}
+#| echo: false
+#| label: tbl-sarima3
+#| tbl-cap: "Estimated model coefficients for the fitted regression with ARIMA(0,2,2) errors from 1950 to 2021."
+
+kableExtra::kable(as.data.frame(model6$ttable))
 ```
 
 {{< pagebreak >}}
