@@ -1,36 +1,56 @@
-# Assuming your full CO2 per capita time series is called co2_capita_ts
-co2_capita_ts <- ts(owid_co2_clean[201:274,]$co2, start = 1950, frequency = 1)
+#### Preamble ####
+# Purpose: Code to create model with log transformation covid dummy and ARIMA(021) errors
+# This model trains on data up to 2021 noting that 2021 and 2020 are covd. The forecasts are great
+# Author: Liam Wall
+# Date: 16 June 2025
+# Contact: liam.wall@mail.utoronto.ca
+
+#### Workspace Setup #####
+library(tidyverse)
+library(astsa)
+library(forecast)
+library(ggplot2)
+library(gridExtra)
+
+#### Download Data ####
+owid_co2_clean <- read_csv("data/cleaned/owid_co2_clean.csv")
+temp <- read_csv("data/cleaned/temp_clean.csv")
+
+# Assuming your full CO2 time series is called co2_ts
+co2_ts <- ts(owid_co2_clean[201:274,]$co2, start = 1950)
+population <- ts(owid_co2_clean[201:274,]$population, start = 1950)
+temp_ts <- ts(temp[101:174,]$global_average_temperature_anomaly_relative_to_1861_1890, start = 1950) # ends in 2025
 
 # Get the years covered by your full CO2 data
-full_years <- time(co2_capita_ts)
+full_years <- time(co2_ts)
 
 # Define your training and forecast periods
-train_end_year <- 2014
-forecast_start_year <- 2015
-forecast_end_year <- 2023 # or the last year of your actual_observed_co2
+train_end_year <- 2021 # 2014
+forecast_start_year <- 2022 # 2015
+forecast_end_year <- 2023 # 2023
 
-# Number of forecast steps (h)
+# Number of forecast steps (h = 9)
 h_forecast <- forecast_end_year - forecast_start_year + 1
 
 # Create the COVID-19 dummy for all years in your full dataset
 covid_dummy_full <- numeric(length(full_years)) # Initialize with zeros
 
-# Set to 1 for the relevant COVID-19 impact years
-# Common choice: 2020 and 2021
+# Set to 1 for the relevant COVID-19 impact years: 2020 and 2021
 covid_dummy_full[full_years == 2020] <- 1
 covid_dummy_full[full_years == 2021] <- 1
-# You might consider 2022 as well if you believe a lingering effect was present,
-# but for the main shock, 2020-2021 is usually sufficient for annual data.
-# covid_dummy_full[full_years == 2022] <- 1
 
 # Combine all covariates into a full xreg matrix
-# Ensure avg_temp_ts2 is correctly derived if it's avg_temp_ts^2, etc.
-full_xreg_matrix <- as.matrix(ts(owid_co2_clean[201:265,]$population, start = 1950)) # 1950 to 2014
+full_xreg_matrix <- cbind(
+  population = as.numeric(population), # make sure is full series
+  covid = covid_dummy_full
+)
+  
+#  as.matrix(owid_co2_clean[201:274,]$population) # 1950 to 2023
 
 
 # Split your CO2 data and xreg matrix for training
-co2_train <- window(co2_capita_ts, end = train_end_year)
-xreg_train <- window(full_xreg_matrix, end = train_end_year)
+co2_train <- window(co2_ts, end = train_end_year)
+xreg_train <- as.matrix(full_xreg_matrix[1:72])
 
 # Verify dimensions (important!)
 print(paste("Length of co2_train:", length(co2_train)))
@@ -39,37 +59,38 @@ print(paste("Number of rows in xreg_train:", nrow(xreg_train)))
 
 # Fit your ARIMAX model
 # Using Arima from the forecast package
-library(forecast)
-
 # Replace p,d,q with your chosen ARIMA orders (e.g., 1,0,0 as in earlier example)
-# IMPORTANT: If co2_capita_ts should be log-transformed and differenced,
-# you would fit on log(co2_capita_ts) and include d > 0 in your order.
+# IMPORTANT: If co2_ts should be log-transformed and differenced,
+# you would fit on log(co2_ts) and include d > 0 in your order.
 # For example, if you chose ARIMA(1,1,0) on log-transformed data:
 # co2_log_train <- log(co2_train)
 # model_arimax_covid <- Arima(co2_log_train, order = c(1,1,0), xreg = xreg_train)
 # And then the actual_values_for_table would need to be log-transformed when comparing.
 
-# Based on your last model description (co2_capita not log-transformed, d=0 implied)
-model_arimax_covid2 <- Arima(log(co2_train), order = c(0,2,2), xreg = xreg_train)
+pop_train_ts <- ts(owid_co2_clean[201:272,]$population)
+# temp_train_ts <- window(temp_ts, end = train_end_year)
+covid_dummy_train_ts <- covid_dummy_full[1:72]
+fit_l_covid <- lm(log(co2_train) ~ pop_train_ts + covid_dummy_train_ts)
+resid_ts <- ts(as.numeric(resid(fit_l_covid)))
+# plot(resid_ts)
+# plot(diff(resid_ts, differences = 1))
+plot(diff(resid_ts, differences = 2))
+acf2(diff(resid_ts, differences = 2))
+auto.arima(resid_ts) # We get (021) BIC = -288.61
 
-summary(model_arimax_covid2)
-checkresiduals(model_arimax_covid2)
+
+model_l022_covid <- Arima(log(co2_train), order = c(0,2,1), xreg = xreg_train)
+
+summary(model_l022_covid)
+checkresiduals(model_l022_covid)
 
 
 # Create future values for 'time' covariate
 future_years <- forecast_start_year:forecast_end_year
 future_time_vals <- as.numeric(future_years)
 
-# You need future values for avg_temp_ts, avg_temp_ts2, and lblack_carbon_ts
-# These should come from external forecasts or univariate models (as discussed before)
-# For demonstration, I'll use placeholders, but you MUST replace these:
-# You'd need to extend your existing avg_temp_ts, avg_temp_ts2, lblack_carbon_ts to cover these years.
-# E.g., if you have data up to 2023, you would slice it. If forecasting beyond 2023, you need projections.
-
 # For the forecast period (2015-2023), slice the full series of covariates
-# Or extend them if forecasting beyond the observed range of full_xreg_matrix
-full_xreg_matrix2 <- as.matrix(ts(owid_co2_clean[266:274,]$population, start = 2015)) # 1950 to 2014
-forecast_xreg_matrix <- window(full_xreg_matrix2)
+forecast_xreg_matrix <- as.matrix(full_xreg_matrix[73:74])
 
 # Ensure 'covid' column in forecast_xreg_matrix is set appropriately for future years:
 # For 2015-2019: covid = 0
@@ -81,17 +102,18 @@ forecast_xreg_matrix <- window(full_xreg_matrix2)
 
 
 # Generate forecasts with the new model and the future xreg matrix
-co2_forecast_covid3 <- forecast(model_arimax_covid2, xreg = forecast_xreg_matrix, h = h_forecast)
+co2_forecast_covid <- forecast(model_l022_covid, xreg = forecast_xreg_matrix, h = h_forecast)
 
 # Plot the new forecasts
-plot(co2_forecast_covid3, main = "CO2 per capita Forecast with COVID Dummy")
+par(mfrow=c(1,1))
+plot(co2_forecast_covid, main = "Log CO2 Forecast with COVID Dummy ARIMA(021)")
 
 # Overlay actual observed values (ensure actual_observed_co2 is aligned by year)
 # Assuming actual_observed_co2 is a vector for years 2015-2023
 actual_years <- forecast_start_year:forecast_end_year
-actual_observed_co2 <- log(owid_co2_clean[266:274,]$co2)
-points(x = actual_years, y = actual_observed_co2, col = "red", pch = 19, cex = 1.2)
-lines(x = actual_years, y = actual_observed_co2, col = "red", lwd = 2)
+actual_observed_log_co2 <- log(owid_co2_clean[273:274,]$co2)
+points(x = actual_years, y = actual_observed_log_co2, col = "red", pch = 1, cex = 1.2)
+lines(x = actual_years, y = actual_observed_log_co2, col = "red", lwd = 2)
 
 legend("topleft",
        legend = c("Forecast Mean", "Actual Values"),
@@ -101,4 +123,5 @@ legend("topleft",
        lwd = c(2, 2))
 
 # Print the new forecast table
-exp(data.frame(co2_forecast_covid3))
+exp(data.frame(co2_forecast_covid))
+print(owid_co2_clean[273:274,]$co2)

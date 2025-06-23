@@ -16,7 +16,7 @@ plot(owid_co2_per_capita_ts)
 plot(black_carbon_ts)
 plot(temp_ts)
 
-fit1 <- lm(owid_co2_ts ~ population, na.action=NULL)
+fit1 <- lm(owid_co2_ts ~ population)
 
 par(mfrow=c(2,1))
 plot(owid_co2_ts)

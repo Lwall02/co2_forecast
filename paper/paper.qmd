@@ -1,6 +1,13 @@
 ---
 title: "CO2 Emmisions Forecasting with Time Series Analysis"
+author: 
+  - "Liam Wall"
+  - "1007674991"
 format: pdf
+thanks: "Code and data are available at: [https://github.com/Lwall02/co2_forecast](https://github.com/Lwall02/co2_forecast)."
+number-sections: true
+bibliography: references.bib
+table-of-contents: false
 ---
 
 ```{r}
@@ -8,18 +15,333 @@ format: pdf
 #| echo: false
 
 library(tidyverse)
+library(astsa)
+library(forecast)
+library(ggplot2)
+library(gridExtra)
+library(modelsummary)
 ```
 
 ```{r}
-co2_raw <- read_csv(file = "https://raw.githubusercontent.com/owid/co2-data/master/owid-co2-data.csv")
-head(co2_raw)
+#| include: false
+#| echo: false
+
+owid_co2_clean <- read_csv(here::here("data/cleaned/owid_co2_clean.csv"))
+co2_ts <- ts(owid_co2_clean[201:274,]$co2, start = 1950) # 1950 to 2023
+population <- ts(owid_co2_clean[201:274,]$population, start = 1950) # 1950 to 2023
+
 ```
 
-World in Data data @owid-co2-and-greenhouse-gas-emissions.
-Your goal is to develop a well-reasoned and data-driven model for forecasting CO2 emissions and providing meaningful insights.
-To develop a well-reasoned and data driven model I have to make some assumptions as the chosen statistician for your desire of knowledge of co2 emissions. 
-- Firstly I assume that global population has an overarching effect on many of the variables in this paper if not all. And for that purpose, from the base data needed for this project, we will look at co2 per capita on an annual basis, which is accurately recorded from 1950 to 2023. 
-- Secondly, I will focus on finding time series patterns in the co2 data and extrapolating those through analysis. However I will take a few liberties and use other datasets to support the model. Thus I will be fitting a linear regression with autocorellated errors (hopefully if the results allow it - so far it's good model) 
-- Thirdly, I will argue why I think it not necessary to use every predictor that may be useful. I want to avoid overfitting a model with the regression. I want the regression to capture a decent part of the trend and the errors follow a time series. Thus I will use the global mean temperature difference from the 1861-1890 mean. I will also use the annual black carbon (or soot) emmissions from industry (buring of fossisl fuels) (in my mind the long and short term effect). I've done transformations on these in order to emphasize certain properties of their series in order to more accurately assist the liinear model
-- Fourth, we then fit that model and look at the ACF and PAcf and find how the errors are correlaed. Trial and error to get th ebest one and look at the fit of that new model with autocoreallted errors
-- Fifth, forecast and compare with known valu eof at least 2023. 
+# Introduction
+
+## Background and Global Context
+
+The monitoring and prediction of carbon dioxide (CO2) and greenhouse gas emissions has played a great role in global policy in the twenty-first century. In 2007, the Intergovernmental Panel on Climate Change received the Nobel Peace Prize for its efforts to increase global awareness of climate change and its scientific foundations. The IPCC releases comprehensive assessments on climate change every five to seven years and continues to highlight the increasing amount of CO2 and greenhouse gases in the atmosphere, the most recent being in March of 2023. The IPCC also denotes a carbon budget, or the threshold amount of greenhouse gases in Earth’s atmosphere at which the global temperature will increase by 1.5 degrees Celsius relative to the pre-industrial period (about 1750). The IPCC predicts that we will surpass the carbon budget by around 2050, and maybe even sooner if countries’ climate change policy pledges are not met, which I will discuss later. [@ipcc].
+
+The greatest producers of greenhouse gas emissions is the burning of coal, oil, and gas for energy, which is driven by China, the United States, and India. The United States and Europe and developing countries rely heavily on natural gas and oil for energy, whereas China, India, and most of Asia rely on coal for energy production. The alternatives besides coal, natural gas and oil are renewable energy sources like solar, wind, and hydro, as well as nuclear power production. Currently, coal is the most polluting energy source, followed by oil and then natural gas. [@owid-emissions-by-fuel].
+
+The link between CO2 concentrations and the increasing global temperature has many effects. The most obvious being hotter temperatures, droughts, rising ocean levels, ice cap and glacial melting, and more severe weather systems. These physical effects can have devastating consequences on food production, cause home displacement and these weather systems and storms have the potential to cause destruction to structures. It is widely accepted that we should do our best in order to mitigate the future harmful effects of climate change. And so this leads to one of the core assumptions of this paper: the largest factor and effect of climate change is global policy.
+
+## The Importance of Short-Term Forecasting
+
+That short introduction into the concerns and drivers of climate change research was to highlight the important role of global policy. International agreements like the Kyoto Protocol, later replaced by the Paris Agreement, as well as the EU Green Deal and other smaller or individual country agreements all center around a core idea. In order to meet the carbon budget, that is in order to not raise the global temperature by 1.5 degrees Celsius, we cannot continue to emit greenhouse gas and CO2 into the atmosphere at our current rate. In particular, in order to accomplish this, countries must report their emissions and aim to achieve net zero emissions (typically by 2025). Net zero emissions means that the same amount of CO2 and greenhouse gases produced equals the amount removed from the atmosphere. These agreements also focus on clean energy investment, sector-specific emission goals and pledges, and penalties and carbon taxes. (@paris-agreement, @eu-green-deal)
+
+The intervention of international agreements, carbon capture and greenhouse gas removal technologies, and the overall awareness of the effects of climate change means that the environment in which emissions are produced and emitted is constantly changing. What China, the United States, or India chooses to do regarding policy of energy production and emissions (or even global pandemics) can have drastic effects on the annual concentration of greenhouse gases and the rate at which they will continue to increase. For this reason, instead of analysis of the driving factors of CO2 and greenhouse gas emissions, and resulting long term forecasts, which is the work of the hundreds of IPCC researchers and scientists devoted to this work, I will instead employ a time series analysis and analyze the short term trends and forecast. This paper' will develop time series models of greenhouse gas emissions and attempt to make short term predictions. It will combine the benefits of time series and stochastic modelling while not requiring a future knowledge of global policy.
+
+## Research Objectives
+
+This paper's goal is two fold:
+
+1.  To learn from a valid model how the trend of CO2 emissions has changed in recent time periods and perhaps why.
+2.  To determine the amount of confidence we can place in these model predictions and the reasons why.
+
+# Literature Review
+
+The forecasting of CO2 and greenhouse gas emissions is a well established area of statistical research because of its global effects highlighted by the reasons previously discussed. After looking at many examples of modeling and forecasting in the area of greenhouse emissions, previous research mainly dives into the analysis of the driving factors of greenhouse gas emissions and the resulting forecasts. For example, the work done by @paper-regression to forecast the United States CO2 emissions employs a multivariate regression model using the polluting factors or different types of energies. @paper-arima-other-pollutants and @paper-improved-arima use ARIMA forecasting methods for global CO2 and other air pollutant concentrations. We also see a combination of the above methods in @paper-bahrain, who employs a spectrum analysis and ARIMA hybrid model in order to capture and forecast the local pollutant levels in Bahrain, which is experiencing recent air quality issues.
+
+The differences in the underlying methods of these mentioned research papers is in regard to the focus of the paper. Specifically, @paper-regression and their regression model aims to be a tool for policy makers with regard to energy use policy in the US. The ARIMA forecasting approach of @paper-arima-other-pollutants aims to accurately deliver short term air quality warnings, similar to @paper-bahrain. And @paper-improved-arima works with daily CO2 concentration data to build and refine an ARIMA model with validated prediction results. The conclusion of these papers, and the common result of the research in greenhouse gas emissions forecasting, is that emissions are continuing to increase and it is becoming ever more important to enact and enforce climate change policy.
+
+The focus of this paper differs from some of the above papers in that it is not interested in the analysis of the variables that drive CO2 emissions, like the effects of money or wealth or the changes among the energy sectors. In order to employ a model with those well defined variables, and especially in order to be able to forecast CO2 levels using these predictors, much more research is required. For example, forecasting CO2 levels based on the United State’s annual real GDP or based on China’s annual coal production would require future predictions, which have no guarantee of accuracy. It is especially difficult when accounting for future policy, natural disasters, war, and so on.
+
+# Data and Variables
+
+This paper will use a linear regression model with autocorrelated errors. Specifically, I will regress the annual global population against annual CO2 concentrations from 1950 to 2023. Both the population data and the CO2 data are sourced from the Our World in Data: CO2 and Greenhouse Gas Emissions project (@owid-co2-and-greenhouse-gas-emissions, @global-carbon-budget). The population estimates are compiled from various sources with processing and integration conducted by the Our World in Data team. The CO2 concentrations are the annual total emissions of carbon dioxide, excluding land-use change, measured in metric tonnes. The entire dataset of the CO2 levels and population counts from 1950-2023 is shown in @fig-total-co2-pop.
+
+```{r}
+#| echo: false
+#| label: fig-total-co2-pop
+#| fig-width: 10
+#| fig-cap: "Time series plots of the annual global population and total carbon dioxide levels from 1950 to 2023."
+
+par(mfrow=c(1,2))
+
+plot(co2_ts, 
+     main = "Annual Total Global Carbon Dioxide Emmissions", 
+     xlab = "Year",
+     ylab = "Metric tonnes of Carbon Dioxide")
+plot(population, 
+     main = "Annual Total Global Population",
+     xlab = "Year",
+     ylab = "Billions of People"
+     )
+```
+
+The research into population as a significant factor of rising CO2 levels does not get as much attention as economic and other factors. Twenty years ago there was less focus on population being a significant factor, although publications like @paper-population-co2-eu, and @paper-population-co2-2025-finding both find that population has been a driving factor for CO2 levels for individual countries across the globe and the European Union. @paper-population-co2-2025-finding goes so far as to say that half of the increase in emissions from 1996 to 2025 will be due population growth. The more recent population-CO2 analyses have mixed results. @paper-china-population-co2 finds that, in China, income per capita as opposed to population is a better predictor. Similarly, @paper-nigeria-population, finds that economic growth in Nigeria, a developing and rapidly growing country, is also a better predictor. However, on the contrary for developed countries we also find recent studies indicating population as a significant driver of CO2 levels [@paper-recent-population-good; @paper-population-demographic].
+
+# Modeling Framework
+
+This paper’s analysis uses a regression with AutoRegressive Integrated Moving Average (ARIMA) errors model. The regression with ARIMA errors model combines the strengths of standard regression with the time series modeling capabilities of ARIMA. A standard linear regression model assumes that the error term is independent and identically distributed white noise. However, the errors are often correlated. The regression with ARIMA errors model addresses this issue by constructing a two-part model:
+
+-   A Regression Component: This part models the relationship between the dependent variable, here this will be the log transformation of the annual CO2 level, against the annual global population and the indicator function for the COVID-19 pandemic.
+-   An ARIMA Error Component: The error term from the regression, $x_t$, is not assumed to be white noise. Instead, it is modeled as an ARIMA(p,d,q) process, which captures its underlying autocorrelation structure.
+
+```{=latex}
+\begin{align*}
+  y_t &= \beta_0 + \beta_1 \times \text{population}_t + \beta_2 \times \mathbb{1}_{t \in [2020,2021]}(t) + x_t \\
+  x_t &\sim \text{ARIMA}(p,d,q) \\
+  \nabla^d x_t &= \phi_1 x_{t-1} \dots \phi_p x_{t-p} + w_t + \theta_1 w_{t-1} + \theta_q w_{t-q} \\
+  t&=1950,\dots,2023 \quad w_t \sim \text{WN}(0,\sigma_w^2)
+\end{align*}
+```
+
+## COVID-19 Indicator
+
+The inclusion of the indicator variable for the years 2020 and 2021 is a deliberate choice for the model trained on the 1950-2021 data. This is justified for two primary reasons: addressing a structural break and enhancing forecast reliability.
+
+First, the COVID-19 pandemic represents a classic exogenous shock to the global economic system and therefore also to CO2 emissions. The resulting lockdowns and economic slowdown caused a sharp, sudden drop in emissions that was not a product of the underlying long-term trend, or any energy or policy related variables. Second, using an indicator variable is essential for improving prediction accuracy and generating sensible forecasts when the prediction interval is so close to the COVID-19 period. It allows the regression component of the model to isolate the pandemic's unique effect. This prevents the emissions drop from being misinterpreted by the model as an element of the trend as opposed to an autocreelated error.
+
+## Model Justification
+
+The reason the regression with ARIMA errors was chosen is because the goal is to build accurate and interpretable short term CO2 predictions. The predictions simply use the trend between population and CO2 levels in combination with the correlated errors to offer forecasts that do not account for potential large future changes. This model helps analyze the current trends and what could happen if no drastic changes are made. A complete discussion of the forecasts will take place later.
+
+# Data Analysis and Model Fitting
+
+In this section we will fit three models. One trained on population and CO2 data from 1950 to 2007, a second on data from 1950 to 2014, and a third on data from 1950 to 2021. I will call them respecitively, the first, second and third models. We will discuss the purpose and results of the three models in the Discussion section. Firstly, note that we take the log of the annual metric tonnes of CO2 data in order to reduce exponential increases and decreases, reduce variance, and improve the model fit. You can find a comparison of the information criterias of the log transformed and not log transformed models in the appendix. Next, we fit a linear regression model on these training data sets. We can see the fitted line in @fig-three-models as well as their residuals plots. As expected, the fitted line is not perfect and we see that the residuals display a clear pattern and are not white noise.
+
+```{r}
+#| echo: false
+#| label: fig-three-models
+#| fig-cap: "This plot shows the log transformed CO2 data and the fitted linear models on the three training data sets. Below each is their respective residuals plots."
+#| fig-width: 10
+#| fig-height: 5
+
+year1 <- 2007
+year2 <- 2014
+year3 <- 2021
+
+full_years <- time(co2_ts)
+train_end_year <- 2021 
+forecast_start_year <- 2022 
+forecast_end_year <- 2023 
+h_forecast <- forecast_end_year - forecast_start_year + 1
+covid_dummy_full <- numeric(length(full_years))
+covid_dummy_full[full_years == 2020] <- 1
+covid_dummy_full[full_years == 2021] <- 1
+full_xreg_matrix <- cbind(
+  population = as.numeric(population), # make sure is full series
+  covid = covid_dummy_full
+)
+xreg_train <- as.matrix(full_xreg_matrix[1:72]) # for ARIMA part
+covid_dummy_train_ts <- covid_dummy_full[1:72]
+
+co2_train1 <- window(co2_ts, 1950, year1)
+co2_train2 <- window(co2_ts, 1950, year2)
+co2_train3 <- window(co2_ts, 1950, year3)
+
+pop_train1 <- window(population, 1950, year1)
+pop_train2 <- window(population, 1950, year2)
+pop_train3 <- window(population, 1950, year3)
+
+fit1 <- lm(log(co2_train1) ~ pop_train1)
+fit2 <- lm(log(co2_train2) ~ pop_train2)
+fit3 <- lm(log(co2_train3) ~ pop_train3 + covid_dummy_train_ts)
+
+fitted_values1 <- ts(as.numeric(fit1$fitted.values), start = 1950)
+fitted_values2 <- ts(as.numeric(fit2$fitted.values), start = 1950)
+fitted_values3 <- ts(as.numeric(fit3$fitted.values), start = 1950)
+
+par(mfrow=c(2,3))
+
+plot(log(co2_train1),
+     main = "1950-2007",
+     xlab = "Year",
+     ylab = "Log CO2 (tonnes)")
+lines(fitted_values1, col = "red")
+
+plot(log(co2_train2),
+     main = "1950-2014",
+     xlab = "Year",
+     ylab = "Log CO2 (tonnes)")
+lines(fitted_values2, col = "red")
+
+plot(log(co2_train3),
+     main = "1950-2022",
+     xlab = "Year",
+     ylab = "Log CO2 (tonnes)")
+lines(fitted_values3, col = "red")
+
+plot(resid(fit1))
+plot(resid(fit2))
+plot(resid(fit3))
+
+
+```
+
+To choose the differencing, autoregressive, and moving average, parameters $d$, $p$ and $q$ we consider the ACF and PACF plots of the fitted residuals. Refer to the Appendix for a visual of all three model's ACF and PACF plots. After examination we can see the clear choice of model is $d=2$, where the ACF cuts off at 1 and the PACF tails off. This corresponds to model three having ARIMA$(0,2,1)$ errors. Below is the ACF and PACF plot of the third model. @fig-acf1 shows the resulting twice differenced residuals, as well as the ACF and PACF plots.
+
+```{r}
+#| echo: false
+#| label: fig-acf1
+#| fig-width: 10
+#| fig-cap: "From left to right: residuals of the twice differenced third model, the corresponding ACF plot, and the corresponding PACF plot. "
+par(mfrow=c(1,3))
+plot(diff(resid(fit3), differences = 2), 
+     main = "Plot of Residuals of Log(CO2). d = 2")
+invisible(acf(diff(resid(fit3), differences = 2)))
+invisible(acf(diff(resid(fit3), differences = 2), type = "partial"))
+# acf2(diff(resid(fit3), differences = 2))
+```
+
+{{<pagebreak >}}
+
+Now that we have chosen the regression with ARIMA$(0,2,1)$ errors model, we need to make sure the model assumptions are satisfied before forecasting. Refer to the Appendix for complete statistics on the residuals of the regression with ARIMA$(0,2,1)$ errors. The residual diagnostics display residual with no significat lags. We also see a QQ plot where the values lie all very close to the diagonal indicating white noise, as well as all values above the threshold on the Ljung Box Test.
+
+{{< pagebreak >}}
+
+# Forecasting and Results
+
+Now that we have three fitted models over three different training data sets, and we have completed the residual diagnostic tests. We may examine the forecasted results of the fitted model. What we find from the performance of these three models is that both model one and model two have very similar forecasts. We can see, in @fig-arima1 and @fig-arima2, that the blue forecasted line is almost the exact same in both models. Most noticeably, we see that is clearly overestimates that observed CO2 levels in the forecasted years. More importantly however, model one and two both significantly over estimate the forecasted value for 2022 and 2023. On the contrary, model 3 very accurately forecasts the post COVID-19 years.
+
+```{r}
+#| echo: false
+#| label: fig-arima1
+#| fig-width: 10
+#| fig-cap: "The plot on the left shows the fitted values (red) against the real observed log(CO2) values for model one (black). We can see the linear regression in dotted blue. The plot on the left shows the forecasted values for 2008 to 2023 as well as the observed CO2 levels in orange. "
+
+model1 <- Arima(log(co2_train1), order = c(0, 2, 2), xreg = pop_train1, include.mean = FALSE)
+par(mfrow=c(1,2))
+plot(log(co2_train1), lwd = 2,
+     main = "Fitted Regression with ARIMA(0,2,1) Errors Model",
+     ylab = "log(CO2) (tonnes)",
+     xlab = "1950-2007")
+lines(model1$fitted, col = "red", lwd = 2)
+lines(fitted_values1, col = "blue", lty = 2, lwd = 1)
+
+h <- 16
+last_year <- end(co2_train1)[1] # 2007
+
+future_time_vals <- (last_year + 1):(last_year + h)
+
+forecast_population_vals <- owid_co2_clean[259:274,]$population
+
+co2_forecast1 <- forecast(model1, xreg = forecast_population_vals, h = h)
+
+# Plot the forecast
+actual_co2 <- owid_co2_clean[259:274,]$co2
+years <- c(2008:2023)
+
+plot(co2_forecast1, main = "Forecasted Values for 2008-2023")
+points(x = years, y = log(actual_co2), col = "orange", pch = 19)
+```
+
+```{r}
+#| echo: false
+#| label: fig-arima2
+#| fig-width: 10
+#| fig-cap: "The plot on the left shows the fitted values against the real observed log(CO2) values for model two. The plot on the left shows the forecasted values for 2015 to 2023 as well as the observed CO2 levels in orange. "
+
+model2 <- Arima(log(co2_train2), order = c(0, 2, 2), xreg = pop_train2, include.mean = FALSE)
+par(mfrow=c(1,2))
+plot(log(co2_train2), lwd = 2,
+     main = "Fitted Regression with ARIMA(0,2,1) Errors Model",
+     ylab = "log(CO2) (tonnes)",
+     xlab = "1950-2014")
+lines(model2$fitted, col = "red", lwd = 2)
+lines(fitted_values2, col = "blue", lty = 2, lwd = 1)
+
+h <- 9  
+last_year <- end(co2_train1)[1] # 2014
+
+future_time_vals <- (last_year + 1):(last_year + h)
+
+forecast_population_vals <- owid_co2_clean[266:274,]$population
+
+co2_forecast2 <- forecast(model2, xreg = forecast_population_vals, h = h)
+
+# Plot the forecast
+actual_co2 <- owid_co2_clean[266:274,]$co2
+years <- c(2015:2023)
+
+plot(co2_forecast2, main = "Forecasted Values for 2015-2023")
+points(x = years, y = log(actual_co2), col = "orange", pch = 19)
+```
+
+```{r}
+#| echo: false
+#| label: fig-arima3
+#| fig-width: 10
+#| fig-cap: "The plot on the left shows the fitted values against the real observed log(CO2) values for model two. The plot on the left shows the forecasted values for 2022 and 2023 as well as the observed CO2 levels in orange."
+
+model3 <- Arima(log(co2_train3), order = c(0,2,1), xreg = xreg_train)
+par(mfrow=c(1,2))
+plot(log(co2_train3), lwd = 2,
+     main = "Fitted Regression with ARIMA(0,2,1) Errors Model",
+     ylab = "log(CO2) (tonnes)",
+     xlab = "1950-2021")
+lines(model3$fitted, col = "red", lwd = 2)
+lines(fitted_values3, col = "blue", lty = 2, lwd = 1)
+
+future_years <- forecast_start_year:forecast_end_year
+future_time_vals <- as.numeric(future_years)
+forecast_xreg_matrix <- as.matrix(full_xreg_matrix[73:74])
+
+co2_forecast3 <- forecast(model3, xreg = forecast_xreg_matrix, h = h_forecast)
+
+# Plot the forecast
+actual_co2 <- log(owid_co2_clean[273:274,]$co2)
+years <- forecast_start_year:forecast_end_year
+
+plot(co2_forecast3, main = "Log CO2 Forecast with COVID Indicator and ARIMA(0,2,1) Errors")
+points(x = years, y = actual_co2, col = "orange", pch = 1)
+```
+
+{{< pagebreak >}}
+
+# Appendix
+
+Log versus not log models of CO2 regressed against population were assesed in order to choose and baseline for the regression with ARIMA errors. We can see in @tbl-bic that the log models performed much better with respect to information criterias. Note that because our time variable is valued at 1950 to 2023, the $\beta_1$ coefficient of population is near 0.
+
+```{r}
+#| echo: false
+#| label: tbl-bic
+#| tbl-cap: "A table comparing the information criterias of fitted models of population against CO2 and log(CO2)."
+
+fit4 <- lm(co2_train2 ~ pop_train2)
+modelsummary::modelsummary(models = list("Fit from 2007" = fit2, "Fit from 2014" = fit4))
+```
+
+When choosing the parameters we looked at the ACF and PACF plots of the models when $d=0$, $d=1$, and $d=2$. Figure 3, 4 and 5 shows the ACF and PACF plots of the third model with those three differences. The ACF and PACF plots of the first two models behave the same way.
+
+```{r}
+#| echo: false
+#| label: fig-three-acf2
+#| fig-cap: "This plot shows the ACF and PACF plots of all three fitted models."
+
+invisible(acf2(diff(resid(fit1), differences = 2), max.lag = 50))
+invisible(acf2(diff(resid(fit2), differences = 2), max.lag = 50))
+invisible(acf2(diff(resid(fit3), differences = 2), max.lag = 50))
+
+```
+
+Below are the residual diagnostic plots for the fitted ARIMA(p,d,q) models.
+
+```{r}
+#| echo: false
+#| label: fig-sarima
+
+sarima(log(co2_train3), 0, 2, 1, xreg = xreg_train)
+```
+
+{{< pagebreak >}}
+
+# References

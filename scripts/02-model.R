@@ -6,7 +6,7 @@
 
 #### Workspace Setup #####
 library(tidyverse)
-library(astsa) # the data are stored in the package
+library(astsa)
 library(forecast)
 library(ggplot2)
 library(gridExtra)
