@@ -6,8 +6,7 @@ This project applies time series modeling to forecast global CO₂ emissions usi
 
 #### 📊 Model Description
 
-The forecasting framework employs a **linear regression model with ARIMA errors**, specifically:
-
+The forecasting framework employs a **linear regression model with ARIMA errors**, specifically:\
 $$\log(\text{CO₂}_t) = \beta_0 + \beta_1 \cdot \text{Population}_t + \beta_2 \cdot \mathbb{1}_{\text{COVID years}}(t) + x_t,\quad x_t \sim \text{ARIMA}(p,d,q)$$
 
 * **Regression component:** Models log-transformed CO₂ emissions as a function of annual population and a COVID-19 indicator (2020–2021) to account for the structural break during the pandemic.
