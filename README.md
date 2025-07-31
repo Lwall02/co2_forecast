@@ -1,6 +1,4 @@
-# CO₂ Emissions Forecasting
-
-### 🌍 CO₂ Emissions Forecasting with Time Series Regression
+# 🌍 CO₂ Emissions Forecasting with Time Series Regression
 
 This project applies time series modeling to forecast global CO₂ emissions using annual population data from 1950 to 2023. The dataset comes from [Our World in Data](https://ourworldindata.org/co2-and-greenhouse-gas-emissions), which compiles CO₂ emissions (in metric tonnes, excluding land-use change) and global population estimates from various sources.
 
