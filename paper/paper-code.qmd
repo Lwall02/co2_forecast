@@ -1,0 +1,244 @@
+---
+title: "Appendix: Full Code"
+format: pdf
+---
+
+Below is the full code used for this project. It is all the code chunks I had in my quarto doc put into a large chunck that doesn't run.
+
+```{=latex}
+\begin{align*}
+  y_t &= \beta_0 + \beta_1 \times \text{population}_t + \beta_2 \times \mathbb{1}_{t \in [2020,2021]}(t) + x_t \\
+  x_t &\sim \text{ARIMA}(p,d,q) \\
+  \nabla^d x_t &= \phi_1 x_{t-1} \dots \phi_p x_{t-p} + w_t + \theta_1 w_{t-1} + \theta_q w_{t-q} \\
+  t&=1950,\dots,2023 \quad w_t \sim \text{WN}(0,\sigma_w^2)
+\end{align*}
+```
+
+```{r}
+#| include: true
+#| eval: false
+
+library(tidyverse)
+library(astsa)
+library(forecast)
+library(ggplot2)
+library(gridExtra)
+library(modelsummary)
+
+owid_co2_clean <- read_csv(here::here("data/cleaned/owid_co2_clean.csv"))
+co2_ts <- ts(owid_co2_clean[201:274,]$co2, start = 1950) # 1950 to 2023
+population <- ts(owid_co2_clean[201:274,]$population, start = 1950) # 1950 to 2023
+
+
+par(mfrow=c(1,2))
+
+plot(co2_ts, 
+     main = "Annual Total Global Carbon Dioxide Emmissions", 
+     xlab = "Year",
+     ylab = "Metric tonnes of Carbon Dioxide")
+plot(population, 
+     main = "Annual Total Global Population",
+     xlab = "Year",
+     ylab = "Billions of People"
+     )
+
+
+
+year1 <- 2007
+year2 <- 2014
+year3 <- 2021
+
+full_years <- time(co2_ts)
+train_end_year <- 2021 
+forecast_start_year <- 2022 
+forecast_end_year <- 2023 
+h_forecast <- forecast_end_year - forecast_start_year + 1
+covid_dummy_full <- numeric(length(full_years))
+covid_dummy_full[full_years == 2020] <- 1
+covid_dummy_full[full_years == 2021] <- 1
+full_xreg_matrix <- cbind(
+  population = as.numeric(population), # make sure is full series
+  covid = covid_dummy_full
+)
+xreg_train <- as.matrix(full_xreg_matrix[1:72]) # for ARIMA part
+covid_dummy_train_ts <- covid_dummy_full[1:72]
+
+co2_train1 <- window(co2_ts, 1950, year1)
+co2_train2 <- window(co2_ts, 1950, year2)
+co2_train3 <- window(co2_ts, 1950, year3)
+
+pop_train1 <- window(population, 1950, year1)
+pop_train2 <- window(population, 1950, year2)
+pop_train3 <- window(population, 1950, year3)
+
+fit1 <- lm(log(co2_train1) ~ pop_train1)
+fit2 <- lm(log(co2_train2) ~ pop_train2)
+fit3 <- lm(log(co2_train3) ~ pop_train3 + covid_dummy_train_ts)
+
+fitted_values1 <- ts(as.numeric(fit1$fitted.values), start = 1950)
+fitted_values2 <- ts(as.numeric(fit2$fitted.values), start = 1950)
+fitted_values3 <- ts(as.numeric(fit3$fitted.values), start = 1950)
+
+par(mfrow=c(2,3))
+
+plot(log(co2_train1),
+     main = "1950-2007",
+     xlab = "Year",
+     ylab = "Log CO2 (tonnes)")
+lines(fitted_values1, col = "red")
+
+plot(log(co2_train2),
+     main = "1950-2014",
+     xlab = "Year",
+     ylab = "Log CO2 (tonnes)")
+lines(fitted_values2, col = "red")
+
+plot(log(co2_train3),
+     main = "1950-2022",
+     xlab = "Year",
+     ylab = "Log CO2 (tonnes)")
+lines(fitted_values3, col = "red")
+
+plot(resid(fit1))
+plot(resid(fit2))
+plot(resid(fit3))
+
+
+
+
+par(mfrow=c(1,3))
+plot(diff(resid(fit3), differences = 2), 
+     main = "Plot of Residuals of Log(CO2). d = 2")
+invisible(acf(diff(resid(fit3), differences = 2)))
+invisible(acf(diff(resid(fit3), differences = 2), type = "partial"))
+
+
+
+
+par(mfrow=c(3,2))
+model1 <- Arima(log(co2_train1), order = c(0, 2, 2), xreg = pop_train1, include.mean = FALSE)
+# Plot the fitted values
+plot(log(co2_train1), lwd = 2,
+     main = "Fitted Regression with ARIMA(0,2,2) Errors Model",
+     ylab = "log(CO2) (tonnes)",
+     xlab = "1950-2007")
+lines(model1$fitted, col = "red", lwd = 2)
+lines(fitted_values1, col = "blue", lty = 2, lwd = 1)
+h <- 16
+last_year <- end(co2_train1)[1] # 2007
+future_time_vals <- (last_year + 1):(last_year + h)
+forecast_population_vals <- owid_co2_clean[259:274,]$population
+co2_forecast1 <- forecast(model1, xreg = forecast_population_vals, h = h)
+
+# Plot the forecast
+actual_co2 <- owid_co2_clean[259:274,]$co2
+years <- c(2008:2023)
+plot(co2_forecast1, 
+     main = "Forecasted Values for 2008-2023",
+     xlim = c(2000, 2023))
+points(x = years, y = log(actual_co2), col = "orange", pch = 19)
+
+
+model2 <- Arima(log(co2_train2), order = c(0, 2, 2), xreg = pop_train2, include.mean = FALSE)
+# Plot the fitted values
+plot(log(co2_train2), lwd = 2,
+     main = "Fitted Regression with ARIMA(0,2,2) Errors Model",
+     ylab = "log(CO2) (tonnes)",
+     xlab = "1950-2014")
+lines(model2$fitted, col = "red", lwd = 2)
+lines(fitted_values2, col = "blue", lty = 2, lwd = 1)
+h <- 9  
+last_year <- end(co2_train1)[1] # 2014
+future_time_vals <- (last_year + 1):(last_year + h)
+forecast_population_vals <- owid_co2_clean[266:274,]$population
+co2_forecast2 <- forecast(model2, xreg = forecast_population_vals, h = h)
+
+# Plot the forecast
+actual_co2 <- owid_co2_clean[266:274,]$co2
+years <- c(2015:2023)
+plot(co2_forecast2, 
+     main = "Forecasted Values for 2015-2023",
+     xlim = c(2000, 2023))
+points(x = years, y = log(actual_co2), col = "orange", pch = 19)
+
+
+model3 <- Arima(log(co2_train3), order = c(0,2,1), xreg = xreg_train)
+# Plot the fitted values 
+plot(log(co2_train3), lwd = 2,
+     main = "Fitted Regression with ARIMA(0,2,1) Errors Model",
+     ylab = "log(CO2) (tonnes)",
+     xlab = "1950-2021")
+lines(model3$fitted, col = "red", lwd = 2)
+lines(fitted_values3, col = "blue", lty = 2, lwd = 1)
+future_years <- forecast_start_year:forecast_end_year
+future_time_vals <- as.numeric(future_years)
+forecast_xreg_matrix <- as.matrix(full_xreg_matrix[73:74])
+co2_forecast3 <- forecast(model3, xreg = forecast_xreg_matrix, h = h_forecast)
+
+# Plot the forecast
+actual_co2 <- log(owid_co2_clean[273:274,]$co2)
+years <- forecast_start_year:forecast_end_year
+plot(co2_forecast3, 
+     main = "Forecasted Values for 2022 and 2023",
+     xlim = c(2000, 2023))
+points(x = years, y = actual_co2, col = "orange", pch = 1)
+
+
+
+
+
+par(mfrow=c(2,1))
+
+forecast_2022_data <- data.frame(
+  Model = c("Model 1", "Model 2", "Model 3"),
+  Lower_95 = exp(c(co2_forecast1$lower[15, 2], co2_forecast2$lower[8, 2], co2_forecast3$lower[1, 2])),
+  Upper_95 = exp(c(co2_forecast1$upper[15, 2], co2_forecast2$upper[8, 2], co2_forecast3$upper[1, 2])),
+  Forecast_2022 = exp(c(co2_forecast1$mean[15], co2_forecast2$mean[8], co2_forecast3$mean[1])),
+  Observed_2022 = owid_co2_clean$co2[273]
+)
+forecast_2022_data$Error <- forecast_2022_data$Observed - forecast_2022_data$Forecast
+
+forecast_2023_data <- data.frame(
+  Model = c("Model 1", "Model 2", "Model 3"),
+  Lower_95 = exp(c(co2_forecast1$lower[16, 2], co2_forecast2$lower[9, 2], co2_forecast3$lower[2, 2])),
+  Upper_95 = exp(c(co2_forecast1$upper[16, 2], co2_forecast2$upper[9, 2], co2_forecast3$upper[2, 2])),
+  Forecast_2023 = exp(c(co2_forecast1$mean[16], co2_forecast2$mean[9], co2_forecast3$mean[2])),
+  Observed_2023 = owid_co2_clean$co2[274]
+)
+forecast_2023_data$Error <- forecast_2023_data$Observed - forecast_2023_data$Forecast
+
+kableExtra::kable(forecast_2022_data, digits = 3, caption = "The detailed forecast statistics for the year 2022. Each model's lower and upper 95% confidence interval, the point estimate, the observed value, and the forecast error")
+kableExtra::kable(forecast_2023_data, digits = 3, caption = "The detailed forecast statistics for the year 2023. Each model's lower and upper 95% confidence interval, the point estimate, the observed value, and the forecast error")
+
+
+
+
+fit4 <- lm(co2_train2 ~ pop_train2)
+modelsummary::modelsummary(models = list("Fit from 2007" = fit2, "Fit from 2014" = fit4))
+
+
+
+
+invisible(acf2(diff(resid(fit1), differences = 2), max.lag = 50))
+
+invisible(acf2(diff(resid(fit2), differences = 2), max.lag = 50))
+
+invisible(acf2(diff(resid(fit3), differences = 2), max.lag = 50))
+
+
+model4 <- sarima(log(co2_train1), 0, 2, 2, xreg = as.matrix(pop_train1))
+model5 <- sarima(log(co2_train2), 0, 2, 2, xreg = as.matrix(pop_train2))
+model6 <- sarima(log(co2_train3), 0, 2, 1, xreg = xreg_train)
+
+
+
+kableExtra::kable(as.data.frame(model4$ttable))
+
+
+kableExtra::kable(as.data.frame(model5$ttable))
+
+
+kableExtra::kable(as.data.frame(model6$ttable))
+
+```
+

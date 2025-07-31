@@ -1,4 +1,4 @@
-# CO₂ Emissions Forecasting 
+# CO₂ Emissions Forecasting
 
 ### 🌍 CO₂ Emissions Forecasting with Time Series Regression
 
@@ -10,8 +10,8 @@ The forecasting framework employs a **linear regression model with ARIMA errors*
 
 $$\log(\text{CO₂}_t) = \beta_0 + \beta_1 \cdot \text{Population}_t + \beta_2 \cdot \mathbb{1}_{\text{COVID years}}(t) + x_t,\quad x_t \sim \text{ARIMA}(p,d,q)$$
 
-* **Regression component:** Models log-transformed CO₂ emissions as a function of annual population and a COVID-19 indicator (2020–2021) to account for the structural break during the pandemic.
-* **ARIMA error component:** Residuals are modeled as ARIMA(0,2,1) or ARIMA(0,2,2), depending on the training window, capturing autocorrelation in the error structure.
+-   **Regression component:** Models log-transformed CO₂ emissions as a function of annual population and a COVID-19 indicator (2020–2021) to account for the structural break during the pandemic.
+-   **ARIMA error component:** Residuals are modeled as ARIMA(0,2,1) or ARIMA(0,2,2), depending on the training window, capturing autocorrelation in the error structure.
 
 #### 🧪 Model Evaluation
 
@@ -19,8 +19,8 @@ Three models were trained using expanding windows ending in 2007, 2014, and 2021
 
 #### 🔍 Key Takeaways
 
-* Forecasting CO₂ directly from population offers interpretable short-term predictions without relying on uncertain economic or policy-based predictors.
-* Including a COVID-19 shock variable prevented overfitting to the pandemic drop and significantly improved out-of-sample forecast accuracy.
-* This model structure is particularly useful for near-term climate trajectory analysis when global policy responses are uncertain or nonlinear.
+-   Forecasting CO₂ directly from population offers interpretable short-term predictions without relying on uncertain economic or policy-based predictors.
+-   Including a COVID-19 shock variable prevented overfitting to the pandemic drop and significantly improved out-of-sample forecast accuracy.
+-   This model structure is particularly useful for near-term climate trajectory analysis when global policy responses are uncertain or nonlinear.
 
-📁 Full report and forecasting code are available in this repository: [github.com/Lwall02/co2\_forecast](https://github.com/Lwall02/co2_forecast)
+📁 Full report and forecasting code are available in this repository: [github.com/Lwall02/co2_forecast](https://github.com/Lwall02/co2_forecast)

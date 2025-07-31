@@ -1,9 +1,9 @@
 ---
 title: "CO2 Emmisions Forecasting with Time Series Analysis"
-author: 
-  - "Liam Wall"
-  - "1007674991"
+author: "Liam Wall"
 format: pdf
+date: 22 June 2025
+date-format: long
 thanks: "Code and data are available at: [https://github.com/Lwall02/co2_forecast](https://github.com/Lwall02/co2_forecast)."
 number-sections: true
 bibliography: references.bib
