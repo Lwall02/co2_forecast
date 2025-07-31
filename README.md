@@ -8,6 +8,8 @@ The forecasting framework employs a **linear regression model with ARIMA errors*
 
 $$\log(\text{CO₂}_t) = \beta_0 + \beta_1 \cdot \text{Population}_t + \beta_2 \cdot \mathbb{1}_{\text{COVID years}}(t) + x_t,\quad x_t \sim \text{ARIMA}(p,d,q)$$
 
+![equation](https://latex.codecogs.com/svg.image?%5Clog(%5Ctext%7BCO2%7D_t)=%5Cbeta_0+%5Cbeta_1%5Ccdot%5Ctext%7BPopulation%7Dt+%5Cbeta_2%5Ccdot%5Cmathbb%7BI%7D_%7B%5Ctext%7BCOVID%20years%7D%7D(t)+x_t,%5Cquad%20x_t%5Csim%5Ctext%7BARIMA%7D(p,d,q))
+
 -   **Regression component:** Models log-transformed CO₂ emissions as a function of annual population and a COVID-19 indicator (2020–2021) to account for the structural break during the pandemic.
 -   **ARIMA error component:** Residuals are modeled as ARIMA(0,2,1) or ARIMA(0,2,2), depending on the training window, capturing autocorrelation in the error structure.
 
