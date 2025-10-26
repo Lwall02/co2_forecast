@@ -2,6 +2,15 @@
 
 This project applies time series modeling to forecast global CO₂ emissions using annual population data from 1950 to 2023. The dataset comes from [Our World in Data](https://ourworldindata.org/co2-and-greenhouse-gas-emissions), which compiles CO₂ emissions (in metric tonnes, excluding land-use change) and global population estimates from various sources.
 
+#### 🎯 Research Objective
+
+This study aims to:
+
+ - **1.** Analyze how the trend of CO₂ emissions has evolved over time relative to global population growth.
+ - **2.** Develop an interpretable, statistically sound model capable of short-term forecasts that reflect recent policy and structural changes.
+
+The motivation stems from the importance of short-term forecasting in evaluating progress toward global climate targets under agreements such as the Paris Accord and the EU Green Deal.
+
 #### 📊 Model Description
 
 The forecasting framework employs a **linear regression model with ARIMA errors**, specifically:
@@ -10,6 +19,19 @@ The forecasting framework employs a **linear regression model with ARIMA errors*
 
 -   **Regression component:** Models log-transformed CO₂ emissions as a function of annual population and a COVID-19 indicator (2020–2021) to account for the structural break during the pandemic.
 -   **ARIMA error component:** Residuals are modeled as ARIMA(0,2,1) or ARIMA(0,2,2), depending on the training window, capturing autocorrelation in the error structure.
+
+#### ⚙️ Data & Preprocessing
+
+ - **Time Range:** 1950–2023 (annual data)
+ - **Transformations:**
+   - Log-transform of CO₂ emissions to stabilize variance
+   - Differencing to remove non-stationary components (d=2)
+ - **Variables:**
+   - Global CO₂ emissions (metric tonnes, excluding land-use change)
+   - Global population (billions of people)
+   - COVID-19 indicator variable (2020–2021)
+
+All preprocessing steps were implemented in R using `tidyverse`, `forecast`, and `tseries` packages.
 
 #### 🧪 Model Evaluation
 
